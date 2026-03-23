@@ -15,6 +15,13 @@ type ChatWorkspaceActions = {
   selectChat: (chatId: string) => void
   setAgent: (chatId: string, agentId: AgentId) => void
   appendMessage: (chatId: string, message: Message) => void
+  replaceMessages: (chatId: string, messages: Message[]) => void
+  updateMessage: (
+    chatId: string,
+    messageId: string,
+    patch: Partial<Pick<Message, 'content' | 'status'>>,
+  ) => void
+  appendMessageContent: (chatId: string, messageId: string, chunk: string) => void
   setTitle: (chatId: string, title: string) => void
   setSending: (value: boolean) => void
   setSendError: (message: string | null) => void
@@ -69,6 +76,41 @@ export const useChatWorkspaceStore = create<
       chats: s.chats.map((c) =>
         c.id === chatId ? { ...c, messages: [...c.messages, message] } : c,
       ),
+    })),
+
+  replaceMessages: (chatId, messages) =>
+    set((s) => ({
+      chats: s.chats.map((c) =>
+        c.id === chatId ? { ...c, messages } : c,
+      ),
+    })),
+
+  updateMessage: (chatId, messageId, patch) =>
+    set((s) => ({
+      chats: s.chats.map((c) => {
+        if (c.id !== chatId) return c
+        return {
+          ...c,
+          messages: c.messages.map((m) =>
+            m.id === messageId ? { ...m, ...patch } : m,
+          ),
+        }
+      }),
+    })),
+
+  appendMessageContent: (chatId, messageId, chunk) =>
+    set((s) => ({
+      chats: s.chats.map((c) => {
+        if (c.id !== chatId) return c
+        return {
+          ...c,
+          messages: c.messages.map((m) =>
+            m.id === messageId
+              ? { ...m, content: m.content + chunk }
+              : m,
+          ),
+        }
+      }),
     })),
 
   setTitle: (chatId, title) =>

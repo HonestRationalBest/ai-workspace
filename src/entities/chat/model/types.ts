@@ -2,11 +2,14 @@ export type AgentId = 'coding' | 'writing' | 'research'
 
 export type ChatRole = 'user' | 'assistant'
 
+export type MessageStatus = 'streaming' | 'done'
+
 export type Message = {
   id: string
   role: ChatRole
   content: string
   createdAt: number
+  status?: MessageStatus
 }
 
 export type Chat = {

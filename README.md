@@ -24,9 +24,14 @@ See [ai-workspace-server README](../ai-workspace-server/README.md).
 
 ## Environment (front end)
 
-Optional `.env`:
+Required `.env`:
 
-- **`VITE_API_BASE_URL`** — public API origin in production (e.g. `https://api.example.com`). Leave unset in local dev to use the Vite proxy.
+- **`VITE_API_BASE_URL`** — API origin (e.g. local `http://127.0.0.1:3001` to match the Vite dev proxy, or production `https://api.example.com`). The app throws at runtime if this is missing.
+
+## Chat UX
+
+- Assistant replies **stream** token-by-token (`POST /api/chat/stream` on the API).
+- **Stop** aborts the stream; **Regenerate** retries the last assistant reply; **Edit** on a user message rewrites it and resends from that point.
 
 ## Feature-sliced layout
 

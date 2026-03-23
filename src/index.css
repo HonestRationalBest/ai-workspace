@@ -1,11 +1,9 @@
-/* Base layout; component tokens and dark palette come from Ant Design ConfigProvider */
 #root {
   min-height: 100svh;
 }
 
 body {
   margin: 0;
-  /* Aligns with Ant Design dark default (avoids a white flash around the shell) */
   background: #141414;
   color: rgba(255, 255, 255, 0.85);
 }

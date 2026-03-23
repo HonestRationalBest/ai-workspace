@@ -1,4 +1,9 @@
-import { DeleteOutlined } from '@ant-design/icons'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  RedoOutlined,
+  StopOutlined,
+} from '@ant-design/icons'
 import {
   Alert,
   Button,
@@ -42,9 +47,12 @@ export function ChatWorkspace() {
   const setSendError = useChatWorkspaceStore((s) => s.setSendError)
 
   const activeChat = useChatWorkspaceStore(selectActiveChat)
-  const { send } = useSendChatMessage()
+  const { send, stop, regenerate, editUserMessageAndResend } =
+    useSendChatMessage()
 
   const [draft, setDraft] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState('')
   const transcriptRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = useCallback(() => {
@@ -220,53 +228,138 @@ export function ChatWorkspace() {
                 }
               />
             ) : (
-              activeChat.messages.map((m) => (
-                <Flex
-                  key={m.id}
-                  justify={m.role === 'user' ? 'flex-end' : 'flex-start'}
-                >
-                  <Card
-                    size="small"
-                    style={{
-                      maxWidth: 720,
-                      width: '100%',
-                      background:
-                        m.role === 'user'
-                          ? token.colorPrimaryBg
-                          : token.colorFillAlter,
-                      borderColor:
-                        m.role === 'user'
-                          ? token.colorPrimaryBorder
-                          : token.colorBorderSecondary,
-                    }}
-                    styles={{
-                      body: { padding: `${token.paddingSM}px ${token.padding}px` },
-                    }}
+              activeChat.messages.map((m, index) => {
+                const isLast = index === activeChat.messages.length - 1
+                const showRegenerate =
+                  m.role === 'assistant' &&
+                  isLast &&
+                  m.status !== 'streaming' &&
+                  !isSending
+                const isEditing = editingId === m.id
+
+                return (
+                  <Flex
+                    key={m.id}
+                    justify={m.role === 'user' ? 'flex-end' : 'flex-start'}
                   >
-                    <Typography.Text
-                      type="secondary"
+                    <Card
+                      size="small"
                       style={{
-                        fontSize: token.fontSizeSM,
-                        display: 'block',
-                        marginBottom: token.marginXXS,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.06em',
+                        maxWidth: 720,
+                        width: '100%',
+                        background:
+                          m.role === 'user'
+                            ? token.colorPrimaryBg
+                            : token.colorFillAlter,
+                        borderColor:
+                          m.role === 'user'
+                            ? token.colorPrimaryBorder
+                            : token.colorBorderSecondary,
+                      }}
+                      styles={{
+                        body: {
+                          padding: `${token.paddingSM}px ${token.padding}px`,
+                        },
                       }}
                     >
-                      {m.role === 'user' ? 'You' : 'Assistant'}
-                    </Typography.Text>
-                    <Typography.Paragraph
-                      style={{
-                        margin: 0,
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
-                      }}
-                    >
-                      {m.content}
-                    </Typography.Paragraph>
-                  </Card>
-                </Flex>
-              ))
+                      <Flex
+                        justify="space-between"
+                        align="center"
+                        style={{ marginBottom: token.marginXXS }}
+                        gap="small"
+                      >
+                        <Typography.Text
+                          type="secondary"
+                          style={{
+                            fontSize: token.fontSizeSM,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.06em',
+                          }}
+                        >
+                          {m.role === 'user' ? 'You' : 'Assistant'}
+                        </Typography.Text>
+                        <Flex gap="small" wrap="wrap" justify="flex-end">
+                          {m.role === 'user' && !isSending ? (
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<EditOutlined />}
+                              onClick={() => {
+                                setEditingId(m.id)
+                                setEditDraft(m.content)
+                              }}
+                            >
+                              Edit
+                            </Button>
+                          ) : null}
+                          {showRegenerate ? (
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<RedoOutlined />}
+                              onClick={() =>
+                                void regenerate(scrollToBottom)
+                              }
+                            >
+                              Regenerate
+                            </Button>
+                          ) : null}
+                        </Flex>
+                      </Flex>
+                      {m.role === 'user' && isEditing ? (
+                        <Flex vertical gap="small">
+                          <Input.TextArea
+                            value={editDraft}
+                            onChange={(e) => setEditDraft(e.target.value)}
+                            autoSize={{ minRows: 2, maxRows: 12 }}
+                          />
+                          <Flex gap="small" justify="flex-end">
+                            <Button
+                              size="small"
+                              onClick={() => {
+                                setEditingId(null)
+                                setEditDraft('')
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="primary"
+                              size="small"
+                              onClick={() => {
+                                void editUserMessageAndResend(
+                                  m.id,
+                                  editDraft,
+                                  scrollToBottom,
+                                )
+                                setEditingId(null)
+                                setEditDraft('')
+                              }}
+                            >
+                              Save & resend
+                            </Button>
+                          </Flex>
+                        </Flex>
+                      ) : (
+                        <Typography.Paragraph
+                          style={{
+                            margin: 0,
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          {m.content}
+                          {m.status === 'streaming' ? (
+                            <Typography.Text type="secondary">
+                              ▍
+                            </Typography.Text>
+                          ) : null}
+                        </Typography.Paragraph>
+                      )}
+                    </Card>
+                  </Flex>
+                )
+              })
             )}
           </Flex>
 
@@ -288,7 +381,7 @@ export function ChatWorkspace() {
                 onClose={() => setSendError(null)}
               />
             ) : null}
-            <Flex gap="small" align="flex-end">
+            <Flex gap="small" align="flex-end" wrap="wrap">
               <Input.TextArea
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
@@ -296,12 +389,16 @@ export function ChatWorkspace() {
                 placeholder="Message… (Enter to send, Shift+Enter for new line)"
                 disabled={isSending}
                 autoSize={{ minRows: 3, maxRows: 8 }}
-                style={{ flex: 1 }}
+                style={{ flex: 1, minWidth: 200 }}
               />
+              {isSending ? (
+                <Button danger icon={<StopOutlined />} onClick={stop}>
+                  Stop
+                </Button>
+              ) : null}
               <Button
                 type="primary"
-                loading={isSending}
-                disabled={!draft.trim()}
+                disabled={!draft.trim() || isSending}
                 onClick={submit}
               >
                 Send
